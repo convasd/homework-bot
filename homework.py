@@ -120,10 +120,11 @@ def main():
     while True:
         try:
             api_answer = get_api_answer(current_date - RETRY_PERIOD)
-            if api_answer['homeworks'] == []:
+            if not api_answer['homeworks']:
                 logging.debug("Нет изменений в статусе домашних работ.")
-            message = parse_status(api_answer['homeworks'][0])
-            send_message(bot, message)
+            else:               
+                message = parse_status(api_answer['homeworks'][0])
+                send_message(bot, message)
         except TypeError as type_error:
             logging.error(type_error)
         except ValueError as value_error:
@@ -137,6 +138,7 @@ def main():
         except Exception as error:
             logging.error(f"Сбой в работе программы: {error}")
             message = f'Сбой в работе программы: {error}'
+            send_message(bot, message)
         time.sleep(RETRY_PERIOD)
 
 

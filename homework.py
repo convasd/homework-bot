@@ -36,7 +36,7 @@ class ApiRequestError(Exception):
 
 
 class MessageError(Exception):
-    """Пользовательское исключение для ошибок запросов к API."""
+    """Пользовательское исключение отправки сообщений."""
     def __init__(self, message="Ошибка отправки сообщения."):
         self.message = message
         super().__init__(self.message)
@@ -52,7 +52,7 @@ def check_tokens():
     for token_name, token_value in tokens.items():
         if token_value is None:
             logging.critical(f"Отсутствует токен: {token_name}")
-            raise TokenError(f"Отсутствует токен: {token_name}")
+            raise ValueError(f"Отсутствует токен: {token_name}")
  
 
 def send_message(bot, message):

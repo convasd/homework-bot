@@ -75,6 +75,8 @@ def get_api_answer(timestamp):
             ENDPOINT,
             headers=HEADERS,
             params=payload)
+        if homework_statuses.status_code != 200:
+            raise ApiRequestError(f"Ошибка запроса: {homework_statuses.status_code}")
         homework_statuses.raise_for_status()
     except requests.RequestException:
         raise ApiRequestError(f"Ошибка запроса: {homework_statuses.status_code}")
@@ -82,8 +84,7 @@ def get_api_answer(timestamp):
         response_json = homework_statuses.json()
     except JSONDecodeError as error_json:
         raise TypeError(error_json)
-    check_api = check_response(response_json)
-    return check_api
+    return response_json
 
 
 def check_response(response):
@@ -120,6 +121,7 @@ def main():
     while True:
         try:
             api_answer = get_api_answer(current_date - RETRY_PERIOD)
+            check_response(api_answer)
             if not api_answer['homeworks']:
                 logging.debug("Нет изменений в статусе домашних работ.")
             else:               

@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 import requests
 from requests.exceptions import JSONDecodeError
 from telebot import TeleBot
+from exceptions import ApiRequestError, MessageError
 
 load_dotenv()
 
@@ -26,20 +27,6 @@ HOMEWORK_VERDICTS = {
     'reviewing': 'Работа взята на проверку ревьюером.',
     'rejected': 'Работа проверена: у ревьюера есть замечания.'
 }
-
-
-class ApiRequestError(Exception):
-    """Пользовательское исключение для ошибок запросов к API."""
-    def __init__(self, message="Ошибка API-запроса."):
-        self.message = message
-        super().__init__(self.message)
-
-
-class MessageError(Exception):
-    """Пользовательское исключение отправки сообщений."""
-    def __init__(self, message="Ошибка отправки сообщения."):
-        self.message = message
-        super().__init__(self.message)
 
 
 def check_tokens():

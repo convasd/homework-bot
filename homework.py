@@ -1,10 +1,10 @@
 import logging
+from logging.handlers import RotatingFileHandler
 import os
 import sys
 import time
 
 from dotenv import load_dotenv
-from logging.handlers import RotatingFileHandler
 import requests
 from requests.exceptions import JSONDecodeError
 from telebot import TeleBot
@@ -28,15 +28,32 @@ HOMEWORK_VERDICTS = {
 }
 
 
+class ApiRequestError(Exception):
+    """Пользовательское исключение для ошибок запросов к API."""
+    def __init__(self, message="Ошибка API-запроса."):
+        self.message = message
+        super().__init__(self.message)
+
+
+class MessageError(Exception):
+    """Пользовательское исключение для ошибок запросов к API."""
+    def __init__(self, message="Ошибка отправки сообщения."):
+        self.message = message
+        super().__init__(self.message)
+
+
 def check_tokens():
     """Проверка на наличие токенов."""
-    if (PRACTICUM_TOKEN is None
-        ) or (
-            TELEGRAM_TOKEN is None) or (
-                TELEGRAM_CHAT_ID is None):
-        logging.critical("Проверь наличие токенов")
-        raise ValueError("Проверь наличие токенов")
-
+    tokens = {
+        'PRACTICUM_TOKEN': PRACTICUM_TOKEN,
+        'TELEGRAM_TOKEN': TELEGRAM_TOKEN,
+        'TELEGRAM_CHAT_ID': TELEGRAM_CHAT_ID
+    }
+    for token_name, token_value in tokens.items():
+        if token_value is None:
+            logging.critical(f"Отсутствует токен: {token_name}")
+            raise TokenError(f"Отсутствует токен: {token_name}")
+ 
 
 def send_message(bot, message):
     """Отправка сообщения в Телеграмм-бот."""
@@ -46,8 +63,8 @@ def send_message(bot, message):
             text=message,
         )
         logging.debug(f"Сообщение успешно отправлено: {message}")
-    except Exception as e:
-        logging.error(f"Ошибка при отправке сообщения: {e}")
+    except Exception as error:
+        raise MessageError(f"Ошибка при отправке сообщения: {error}")
 
 
 def get_api_answer(timestamp):
@@ -59,15 +76,12 @@ def get_api_answer(timestamp):
             headers=HEADERS,
             params=payload)
         homework_statuses.raise_for_status()
-    except requests.RequestException as error_request:
-        logging.error(f"Ошибка запроса: {homework_statuses.status_code}")
-        raise error_request
+    except requests.RequestException:
+        raise ApiRequestError(f"Ошибка запроса: {homework_statuses.status_code}")
     try:
         response_json = homework_statuses.json()
     except JSONDecodeError as error_json:
-        logging.error("Ошибка типа ответа на запрос")
         raise TypeError(error_json)
-
     check_api = check_response(response_json)
     return check_api
 
@@ -77,24 +91,17 @@ def check_response(response):
     if not isinstance(response, dict):
         raise TypeError("Ответ от запроса не словарь")
     if ('homeworks' not in response) or ('current_date' not in response):
-        logging.error(
-            "В ответе отсутствуют ключи 'homeworks' или 'current_date'")
         raise ValueError(
             "В ответе отсутствуют ключи 'homeworks' или 'current_date'")
     homeworks = response['homeworks']
     if not isinstance(homeworks, list):
         raise TypeError("Значение по ключу 'homeworks' не является списком")
-    for homework in homeworks:
-        if not all(key in homework for key in ['homework_name', 'status']):
-            raise ValueError(
-                "В элементе homeworks отсутствуют необходимые ключи")
     return response
 
 
 def parse_status(homework):
     """Определяем статус."""
     if 'homework_name' not in homework:
-        logging.error("В ответе API отсутствует ключ 'homework_name'")
         raise KeyError("В ответе API отсутствует ключ 'homework_name'")
     verdict = homework.get('status')
     homework_name = homework.get('homework_name')
@@ -102,23 +109,31 @@ def parse_status(homework):
         return f'Изменился статус проверки работы "{
             homework_name}". {HOMEWORK_VERDICTS[verdict]}'
     else:
-        logging.error(f"Неожиданный статус работы: {verdict}")
         raise ValueError(f"Неизвестный статус работы: {verdict}")
 
 
 def main():
     """Основная логика работы бота."""
     check_tokens()
-    # Создаем объект класса бота
     bot = TeleBot(token=TELEGRAM_TOKEN)
-    timestamp = int(time.time())
+    current_date = int(time.time())
     while True:
         try:
-            api_answer = get_api_answer(timestamp - RETRY_PERIOD)
+            api_answer = get_api_answer(current_date - RETRY_PERIOD)
             if api_answer['homeworks'] == []:
                 logging.debug("Нет изменений в статусе домашних работ.")
             message = parse_status(api_answer['homeworks'][0])
             send_message(bot, message)
+        except TypeError as type_error:
+            logging.error(type_error)
+        except ValueError as value_error:
+            logging.error(value_error)
+        except KeyError as key_error:
+            logging.error(key_error)
+        except ApiRequestError as api_error:
+            logging.error(api_error)
+        except MessageError as message_error:
+            logging.error(message_error)
         except Exception as error:
             logging.error(f"Сбой в работе программы: {error}")
             message = f'Сбой в работе программы: {error}'

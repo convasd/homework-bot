@@ -113,7 +113,7 @@ def main():
             check_response(api_answer)
             if not api_answer['homeworks']:
                 logging.debug("Нет изменений в статусе домашних работ.")
-            else:           
+            else:
                 message = parse_status(api_answer['homeworks'][0])
                 send_message(bot, message)
         except TypeError as type_error:

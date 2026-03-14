@@ -40,7 +40,7 @@ def check_tokens():
         if token_value is None:
             logging.critical(f"Отсутствует токен: {token_name}")
             raise ValueError(f"Отсутствует токен: {token_name}")
- 
+
 
 def send_message(bot, message):
     """Отправка сообщения в Телеграмм-бот."""
@@ -63,10 +63,12 @@ def get_api_answer(timestamp):
             headers=HEADERS,
             params=payload)
         if homework_statuses.status_code != 200:
-            raise ApiRequestError(f"Ошибка запроса: {homework_statuses.status_code}")
+            raise ApiRequestError(
+                f"Ошибка запроса: {homework_statuses.status_code}")
         homework_statuses.raise_for_status()
     except requests.RequestException:
-        raise ApiRequestError(f"Ошибка запроса: {homework_statuses.status_code}")
+        raise ApiRequestError(
+            f"Ошибка запроса: {homework_statuses.status_code}")
     try:
         response_json = homework_statuses.json()
     except JSONDecodeError as error_json:

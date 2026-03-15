@@ -1,17 +1,16 @@
 import logging
-from logging.handlers import RotatingFileHandler
 import os
 import sys
 import time
 from http import HTTPStatus
+from logging.handlers import RotatingFileHandler
 
-from dotenv import load_dotenv
 import requests
+from dotenv import load_dotenv
 from requests.exceptions import JSONDecodeError
 from telebot import TeleBot
 
-from exceptions import ApiJsonError, ApiRequestError, MessageError
-
+from exceptions import ApiJsonError, ApiRequestError, GeneralLogicError, MessageError
 
 load_dotenv()
 
@@ -110,11 +109,15 @@ def main():
     """Основная логика работы бота."""
     check_tokens()
     bot = TeleBot(token=TELEGRAM_TOKEN)
-    current_date = int(time.time())
+    timestamp = int(time.time())
     while True:
         try:
-            api_answer = get_api_answer(current_date - RETRY_PERIOD)
+            api_answer = get_api_answer(timestamp - RETRY_PERIOD)
             check_response(api_answer)
+            if 'current_date' in api_answer:
+                timestamp = api_answer['current_date']
+            else:
+                timestamp = int(time.time())
             if not api_answer['homeworks']:
                 logging.debug("Нет изменений в статусе домашних работ.")
             else:
@@ -128,11 +131,13 @@ def main():
             logging.error(key_error)
         except ApiRequestError as api_error:
             logging.error(api_error)
+        except ApiJsonError as json_error:
+            logging.error(json_error)
         except MessageError as message_error:
             logging.error(message_error)
-        except Exception as error:
-            logging.error(f"Сбой в работе программы: {error}")
-            message = f'Сбой в работе программы: {error}'
+        except GeneralLogicError as logic_error:
+            message = 'Сбой в работе логики программы: ' + logic_error
+            logging.error(message)
             send_message(bot, message)
         time.sleep(RETRY_PERIOD)
 

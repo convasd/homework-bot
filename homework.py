@@ -98,8 +98,7 @@ def parse_status(homework):
     if verdict in HOMEWORK_VERDICTS:
         return f'Изменился статус проверки работы "{
             homework_name}". {HOMEWORK_VERDICTS[verdict]}'
-    else:
-        raise ValueError(f"Неизвестный статус работы: {verdict}")
+    raise ValueError(f"Неизвестный статус работы: {verdict}")
 
 
 def main():

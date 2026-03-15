@@ -11,7 +11,7 @@ from requests.exceptions import JSONDecodeError
 from telebot import TeleBot
 
 from exceptions import (ApiJsonError, ApiRequestError,
-                        GeneralLogicError, MessageError)
+                        IsinstanceError, MessageError, ValueKeyError)
 
 load_dotenv()
 
@@ -83,51 +83,26 @@ def get_api_answer(timestamp):
 def check_response(response):
     """Проверяем ответ на наличие всех ключей."""
     if not isinstance(response, dict):
-        raise TypeError("Ответ от запроса не словарь")
+        raise IsinstanceError("Ответ от запроса не словарь")
     if ('homeworks' not in response) or ('current_date' not in response):
-        raise ValueError(
+        raise ValueKeyError(
             "В ответе отсутствуют ключи 'homeworks' или 'current_date'")
     homeworks = response['homeworks']
     if not isinstance(homeworks, list):
-        raise TypeError("Значение по ключу 'homeworks' не является списком")
+        raise IsinstanceError("Значение по ключу 'homeworks' не является списком")
     return response
 
 
 def parse_status(homework):
     """Определяем статус."""
     if 'homework_name' not in homework:
-        raise KeyError("В ответе API отсутствует ключ 'homework_name'")
+        raise ValueKeyError("В ответе API отсутствует ключ 'homework_name'")
     verdict = homework.get('status')
     homework_name = homework.get('homework_name')
     if verdict in HOMEWORK_VERDICTS:
         return f'Изменился статус проверки работы "{
             homework_name}". {HOMEWORK_VERDICTS[verdict]}'
-    raise ValueError(f"Неизвестный статус работы: {verdict}")
-
-
-def get_and_check_api_answer(timestamp):
-    """Создаем и проверяем результаты API-запроса."""
-    api_answer = get_api_answer(timestamp - RETRY_PERIOD)
-    check_response(api_answer)
-    return api_answer
-
-
-def update_timestamp(api_answer):
-    """Обновление timestamp из запроса."""
-    if 'current_date' in api_answer:
-        timestamp = api_answer['current_date']
-    else:
-        timestamp = int(time.time())
-    return timestamp
-
-
-def handle_api_response(bot, api_answer):
-    """Решение об отправка сообщения в ТГ."""
-    if not api_answer['homeworks']:
-        logging.debug("Нет изменений в статусе домашних работ.")
-    else:
-        message = parse_status(api_answer['homeworks'][0])
-        send_message(bot, message)
+    raise ValueKeyError(f"Неизвестный статус работы: {verdict}")
 
 
 def main():
@@ -137,23 +112,18 @@ def main():
     timestamp = int(time.time())
     while True:
         try:
-            api_answer = get_and_check_api_answer(timestamp)
-            timestamp = update_timestamp(api_answer)
-            handle_api_response(bot, api_answer)
-        except TypeError as type_error:
-            logging.error(type_error)
-        except ValueError as value_error:
-            logging.error(value_error)
-        except KeyError as key_error:
-            logging.error(key_error)
-        except ApiRequestError as api_error:
-            logging.error(api_error)
-        except ApiJsonError as json_error:
-            logging.error(json_error)
+            api_answer = get_api_answer(timestamp - RETRY_PERIOD)
+            check_response(api_answer)
+            timestamp = api_answer['current_date']
+            if not api_answer['homeworks']:
+                logging.debug("Нет изменений в статусе домашних работ.")
+            else:
+                message = parse_status(api_answer['homeworks'][0])
+                send_message(bot, message)
         except MessageError as message_error:
             logging.error(message_error)
-        except GeneralLogicError as logic_error:
-            message = 'Сбой в работе логики программы: ' + str(logic_error)
+        except Exception as exception_error:
+            message = f'Сбой в работе логики программы:  + {str(exception_error)}'
             logging.error(message)
             send_message(bot, message)
         time.sleep(RETRY_PERIOD)

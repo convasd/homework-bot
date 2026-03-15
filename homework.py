@@ -3,12 +3,15 @@ from logging.handlers import RotatingFileHandler
 import os
 import sys
 import time
+from http import HTTPStatus
 
 from dotenv import load_dotenv
 import requests
 from requests.exceptions import JSONDecodeError
 from telebot import TeleBot
-from exceptions import ApiRequestError, MessageError
+
+from exceptions import ApiJsonError, ApiRequestError, MessageError
+
 
 load_dotenv()
 
@@ -31,6 +34,7 @@ HOMEWORK_VERDICTS = {
 
 def check_tokens():
     """Проверка на наличие токенов."""
+    
     tokens = {
         'PRACTICUM_TOKEN': PRACTICUM_TOKEN,
         'TELEGRAM_TOKEN': TELEGRAM_TOKEN,
@@ -38,8 +42,9 @@ def check_tokens():
     }
     for token_name, token_value in tokens.items():
         if token_value is None:
-            logging.critical(f"Отсутствует токен: {token_name}")
-            raise ValueError(f"Отсутствует токен: {token_name}")
+            var_errors = "Отсутствует токен: " + token_name
+            logging.critical(var_errors)
+            raise ValueError(var_errors)
 
 
 def send_message(bot, message):
@@ -62,7 +67,7 @@ def get_api_answer(timestamp):
             ENDPOINT,
             headers=HEADERS,
             params=payload)
-        if homework_statuses.status_code != 200:
+        if homework_statuses.status_code != HTTPStatus.OK:
             raise ApiRequestError(
                 f"Ошибка запроса: {homework_statuses.status_code}")
         homework_statuses.raise_for_status()
@@ -72,7 +77,7 @@ def get_api_answer(timestamp):
     try:
         response_json = homework_statuses.json()
     except JSONDecodeError as error_json:
-        raise TypeError(error_json)
+        raise ApiJsonError(error_json)
     return response_json
 
 

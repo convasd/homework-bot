@@ -4,6 +4,12 @@ class ApiRequestError(Exception):
         self.message = message
         super().__init__(self.message)
 
+class ApiJsonError(Exception):
+    """Пользовательское исключение для ошибок запросов к API."""
+    def __init__(self, message="API-ответ не JSON."):
+        self.message = message
+        super().__init__(self.message)
+
 
 class MessageError(Exception):
     """Пользовательское исключение отправки сообщений."""

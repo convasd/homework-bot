@@ -10,7 +10,8 @@ from dotenv import load_dotenv
 from requests.exceptions import JSONDecodeError
 from telebot import TeleBot
 
-from exceptions import ApiJsonError, ApiRequestError, GeneralLogicError, MessageError
+from exceptions import (ApiJsonError, ApiRequestError,
+                        GeneralLogicError, MessageError)
 
 load_dotenv()
 
@@ -33,7 +34,6 @@ HOMEWORK_VERDICTS = {
 
 def check_tokens():
     """Проверка на наличие токенов."""
-    
     tokens = {
         'PRACTICUM_TOKEN': PRACTICUM_TOKEN,
         'TELEGRAM_TOKEN': TELEGRAM_TOKEN,
@@ -105,6 +105,31 @@ def parse_status(homework):
     raise ValueError(f"Неизвестный статус работы: {verdict}")
 
 
+def get_and_check_api_answer(timestamp):
+    """Создаем и проверяем результаты API-запроса."""
+    api_answer = get_api_answer(timestamp - RETRY_PERIOD)
+    check_response(api_answer)
+    return api_answer
+
+
+def update_timestamp(api_answer):
+    """Обновление timestamp из запроса."""
+    if 'current_date' in api_answer:
+        timestamp = api_answer['current_date']
+    else:
+        timestamp = int(time.time())
+    return timestamp
+
+
+def handle_api_response(bot, api_answer):
+    """Решение об отправка сообщения в ТГ."""
+    if not api_answer['homeworks']:
+        logging.debug("Нет изменений в статусе домашних работ.")
+    else:
+        message = parse_status(api_answer['homeworks'][0])
+        send_message(bot, message)
+
+
 def main():
     """Основная логика работы бота."""
     check_tokens()
@@ -112,17 +137,9 @@ def main():
     timestamp = int(time.time())
     while True:
         try:
-            api_answer = get_api_answer(timestamp - RETRY_PERIOD)
-            check_response(api_answer)
-            if 'current_date' in api_answer:
-                timestamp = api_answer['current_date']
-            else:
-                timestamp = int(time.time())
-            if not api_answer['homeworks']:
-                logging.debug("Нет изменений в статусе домашних работ.")
-            else:
-                message = parse_status(api_answer['homeworks'][0])
-                send_message(bot, message)
+            api_answer = get_and_check_api_answer(timestamp)
+            timestamp = update_timestamp(api_answer)
+            handle_api_response(bot, api_answer)
         except TypeError as type_error:
             logging.error(type_error)
         except ValueError as value_error:
@@ -136,7 +153,7 @@ def main():
         except MessageError as message_error:
             logging.error(message_error)
         except GeneralLogicError as logic_error:
-            message = 'Сбой в работе логики программы: ' + logic_error
+            message = 'Сбой в работе логики программы: ' + str(logic_error)
             logging.error(message)
             send_message(bot, message)
         time.sleep(RETRY_PERIOD)

@@ -89,7 +89,8 @@ def check_response(response):
             "В ответе отсутствуют ключи 'homeworks' или 'current_date'")
     homeworks = response['homeworks']
     if not isinstance(homeworks, list):
-        raise IsinstanceError("Значение по ключу 'homeworks' не является списком")
+        raise IsinstanceError(
+            "Значение по ключу 'homeworks' не является списком")
     return response
 
 
@@ -123,7 +124,8 @@ def main():
         except MessageError as message_error:
             logging.error(message_error)
         except Exception as exception_error:
-            message = f'Сбой в работе логики программы:  + {str(exception_error)}'
+            message = f'Сбой в работе логики программы:  + {str(
+                exception_error)}'
             logging.error(message)
             send_message(bot, message)
         time.sleep(RETRY_PERIOD)
